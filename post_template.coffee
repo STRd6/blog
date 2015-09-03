@@ -22,9 +22,11 @@ module.exports = (post) ->
         <link rel="stylesheet" type="text/css" href="/style.css">
       </head>
       <body>
-        <iframe src="/header.hmtl" id="header"></iframe>
-        <iframe src="/navigation.html" id="navigation"></iframe>
-        <content>#{post.html}</content>
+        <iframe src="/header.html" id="header"></iframe>
+        <main>
+          <iframe src="/navigation.html" id="navigation"></iframe>
+          <content>#{post.html}</content>
+        </main>
       </body>
     </html>
   """
