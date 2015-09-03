@@ -1,5 +1,5 @@
 require "cornerstone"
-require "./lib/markdown"
+global.markdown = marked
 
 # Store posts as JSON
 # Also store posts as html

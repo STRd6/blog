@@ -1,6 +1,7 @@
 version: "0.0.1"
 remoteDependencies: [
   "https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.js"
+  "https://cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js"
 ]
 dependencies:
   cornerstone: "distri/cornerstone:master"

@@ -11,9 +11,6 @@ escapeHTML = (string) ->
     entityMap[s]
 
 module.exports = (post) ->
-  # Stylesheet
-  # Post content
-
   """
     <html>
       <head>
