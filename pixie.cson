@@ -1,0 +1,6 @@
+version: "0.0.1"
+remoteDependencies: [
+  "https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.js"
+]
+dependencies:
+  "s3-uploader": "distri/s3-uploader:v0.1.3"

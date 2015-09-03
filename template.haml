@@ -1,0 +1,6 @@
+#main
+  #actions
+    - @actions.forEach (action) ->
+      %button(click=action.fn)= action.name
+  .wrap
+    #ace
