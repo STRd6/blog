@@ -1,6 +1,6 @@
 #main
   #actions
     - @actions.forEach (action) ->
-      %button(click=action.fn)= action.name
+      %button(click=action.fn)= action.name.titleize()
   .wrap
     #ace
