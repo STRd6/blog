@@ -1,11 +1,11 @@
-module.exports = (content) ->
+module.exports = (content, cssClass) ->
   """
     <html>
       <head>
         <meta charset="utf-8" />
         <link rel="stylesheet" type="text/css" href="/style.css">
       </head>
-      <body>
+      <body class="#{cssClass}">
         #{content}
       </body>
     </html>

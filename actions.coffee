@@ -41,6 +41,11 @@ module.exports = ->
 
       previewWindow.document.open()
       previewWindow.document.write(content)
+      previewWindow.document.write """
+        <style>
+          #{styl(editor.getValue(), whitespace: true).toString()}
+        </style>
+      """
       previewWindow.document.close()
 
     load: ->
@@ -85,7 +90,7 @@ module.exports = ->
       text = editor.getValue()
       html = markdown text
 
-      html = HeaderTemplate html
+      html = HeaderTemplate html, "no-bg header"
 
       uploader.upload
         key: path + ".html"
@@ -103,7 +108,7 @@ module.exports = ->
       text = editor.getValue()
       html = markdown text
 
-      html = HeaderTemplate html
+      html = HeaderTemplate html, "no-bg navigation"
 
       uploader.upload
         key: path + ".html"
@@ -119,7 +124,7 @@ module.exports = ->
       load("style.styl")
       .then (content) ->
         editor.setValue content
-        editor.getSession().setMode('styl')
+        editor.getSession().setMode('css')
 
     save_stylesheet: ->
       source = editor.getValue()
