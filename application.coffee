@@ -28,9 +28,21 @@ compileTmpl = (source) ->
     compiler: CoffeeScript
     runtime: "require(\"/lib/hamlet-runtime\")"
 
-  console.log fnTxt
-  
-  fnTxt
+  m = {}
+  Function("module", "require", fnTxt)(m, require)
+  res = m.exports
+
+  (content) ->
+    c = document.createElement("content")
+    c.innerHTML = content
+
+    r = res
+      content: c
+
+    d = document.createElement "div"
+    d.appendChild r
+
+    return d.innerHTML
 
 Filetree = require "./filetree"
 File = Filetree.File
@@ -47,8 +59,7 @@ module.exports = (I={}, self=Model(I)) ->
               %link(rel="stylesheet" type="text/css" href="style.css")
 
             %body
-              %content
-                = @content
+              = @content
         """
       ]
 
@@ -76,7 +87,16 @@ module.exports = (I={}, self=Model(I)) ->
       #  - Save .htmls
       # Update index.html
 
-      tmpl = compileTmpl(self.filetree().files.first())
+      templateContent = self.filetree().files.first().content()
+      tmpl = compileTmpl(templateContent)
+      r = tmpl marked """
+        Hello
+        =====
+        
+        World
+      """
+
+      console.log r
 
     loadManifest: (path) ->
       load(path)
