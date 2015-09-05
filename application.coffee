@@ -1,3 +1,9 @@
+Filetree = require "./filetree"
+File = Filetree.File
+HamletCompiler = require "./lib/hamlet-compiler"
+styl = require "styl"
+Uploader = require "s3-uploader"
+
 load = (path) ->
   deferred = Q.defer()
 
@@ -14,14 +20,6 @@ load = (path) ->
   xhr.send()
 
   deferred.promise
-
-save = (path, content, type, cacheControl=0) ->
-  uploader.upload
-    key: path
-    blob: new Blob [content], type: type
-    cacheControl: cacheControl
-
-HamletCompiler = require "./lib/hamlet-compiler"
 
 compileTmpl = (source) ->
   fnTxt = HamletCompiler.compile source,
@@ -44,13 +42,18 @@ compileTmpl = (source) ->
 
     return d.innerHTML
 
-Filetree = require "./filetree"
-File = Filetree.File
-
 module.exports = (I={}, self=Model(I)) ->
   defaults I,
     filetree:
-      files: [
+      files: [{
+        path: "posts/hello.md"
+        content: """
+          Hello
+          =====
+          
+          World
+        """
+      }, {
         path: "template.haml"
         content: """
           %html
@@ -61,9 +64,26 @@ module.exports = (I={}, self=Model(I)) ->
             %body
               = @content
         """
-      ]
+      }]
 
-  posts = []
+  policy = JSON.parse(localStorage.blogPolicy)
+  uploader = Uploader(policy)
+
+  save = (path, content, type, cacheControl=0) ->
+    uploader.upload
+      key: path
+      blob: new Blob [content], type: type
+      cacheControl: cacheControl
+
+  posts = [{
+    slug: "hello"
+    content: """
+      Hello
+      =====
+      
+      World
+    """
+  }]
 
   self.attrModel "filetree", Filetree
 
@@ -79,29 +99,42 @@ module.exports = (I={}, self=Model(I)) ->
           self.publish()
       }]
     publish: ->
-      # Save manifest
-      # Save template sources
-      # Save css
+      # TODO: Save manifest
+
+      # TODO: Save template sources
+      # TODO: Save css
+
+      # Compile template
+      templateContent = self.filetree().files.last().content()
+      tmpl = compileTmpl(templateContent)
+
       # Save posts
       #  - Save .mds
       #  - Save .htmls
-      # Update index.html
+      posts.forEach (post, i) ->
+        path = post.slug
+        md = post.content
 
-      templateContent = self.filetree().files.first().content()
-      tmpl = compileTmpl(templateContent)
-      r = tmpl marked """
-        Hello
-        =====
-        
-        World
-      """
+        html = tmpl marked md
 
-      console.log r
+        save post.slug + ".md", md, "text/markdown"
+        .done()
+        save post.slug + ".html", html, "text/html"
+        .done()
+
+        # Update index.html
+        # assumes first post is index
+        if i is 0
+          save "index.html", html, "text/html"
+          .done()
 
     loadManifest: (path) ->
       load(path)
-      .then (result) ->
-        console.log result
+      .then ({posts, template, style}) ->
+        posts.map (post) ->
+          File post
+        .concat [File style]
+        .concat [File template]
 
     newPost: ->
       title = prompt "Title"
