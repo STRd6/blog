@@ -113,6 +113,26 @@ module.exports = (I={}, self=Model(I)) ->
     compileStyle: ->
       compileStyle(self.style().content())
 
+    uploadEditor: ->
+      Require = require "require"
+      editorJS = Require.executePackageWrapper(PACKAGE)
+      
+      remoteDepScripts = PACKAGE.remoteDependencies.map (url) ->
+        "<script src=\"#{url}\"><\/script>"
+      .join("\n")
+
+      save "edit/index.html", """
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          #{remoteDepScripts}
+        </head>
+        <body>
+          <script>#{editorJS}<\/script>
+        </body>
+        </html>
+      """, "text/html"
+
     publish: ->
       manifest =
         title: self.title()

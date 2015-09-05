@@ -22,3 +22,5 @@ document.body.appendChild require("./template")(application)
 application.include require("./ace_shim")
 
 global.application = application
+
+application.loadBlog()
