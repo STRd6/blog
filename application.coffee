@@ -21,6 +21,14 @@ load = (path) ->
 
   deferred.promise
 
+compileMarkdown = (source) ->
+  content = marked source
+
+  post = document.createElement("post")
+  post.innerHTML = content
+
+  post
+
 compileTmpl = (source) ->
   fnTxt = HamletCompiler.compile source,
     compiler: CoffeeScript
@@ -28,43 +36,42 @@ compileTmpl = (source) ->
 
   m = {}
   Function("module", "require", fnTxt)(m, require)
-  res = m.exports
+  tmpl = m.exports
 
-  (content) ->
-    c = document.createElement("content")
-    c.innerHTML = content
-
-    r = res
-      content: c
-
-    d = document.createElement "div"
-    d.appendChild r
-
-    return d.innerHTML
+  (data) ->
+    tmpl(data).outerHTML
 
 module.exports = (I={}, self=Model(I)) ->
   defaults I,
-    filetree:
-      files: [{
-        path: "posts/hello.md"
-        content: """
-          Hello
-          =====
-          
-          World
-        """
-      }, {
-        path: "template.haml"
-        content: """
-          %html
-            %head
-              %meta(charset="UTF-8")
-              %link(rel="stylesheet" type="text/css" href="style.css")
+    posts: [{
+      path: "hello"
+      slug: "hello"
+      content: """
+        Hello
+        =====
+        
+        World
+      """
+    }]
+    template:
+      path: "_template"
+      content: """
+        %html
+          %head
+            %meta(charset="UTF-8")
+            %link(rel="stylesheet" type="text/css" href="style.css")
 
-            %body
-              = @content
-        """
-      }]
+          %body
+            = @compileMarkdown @post.content()
+      """
+    style:
+      path: "_style"
+      content: """
+        body
+          margin: 0
+      """
+    filetree:
+      files: []
 
   policy = JSON.parse(localStorage.blogPolicy)
   uploader = Uploader(policy)
@@ -75,17 +82,11 @@ module.exports = (I={}, self=Model(I)) ->
       blob: new Blob [content], type: type
       cacheControl: cacheControl
 
-  posts = [{
-    slug: "hello"
-    content: """
-      Hello
-      =====
-      
-      World
-    """
-  }]
-
   self.attrModel "filetree", Filetree
+  self.attrModels "posts", File
+  self.attrModel "template", File
+  self.attrModel "style", File
+  self.attrObservable "title"
 
   self.extend
     actions: ->
@@ -98,35 +99,34 @@ module.exports = (I={}, self=Model(I)) ->
         fn: ->
           self.publish()
       }]
+    compileMarkdown: compileMarkdown
     publish: ->
-      # TODO: Save manifest
+      manifest =
+        title: self.title()
+        posts: self.posts()
+        template: self.template()
+        style: self.style()
 
-      # TODO: Save template sources
-      # TODO: Save css
+      save "blog.json", JSON.stringify(manifest), "application/json"
 
       # Compile template
-      templateContent = self.filetree().files.last().content()
+      templateContent = self.template().content()
       tmpl = compileTmpl(templateContent)
 
       # Save posts
-      #  - Save .mds
+      #  - TODO: Only if post or template changed
       #  - Save .htmls
-      posts.forEach (post, i) ->
-        path = post.slug
-        md = post.content
+      self.posts.forEach (post, i) ->
+        path = post.I.slug
+        md = post.content()
 
-        html = tmpl marked md
+        html = tmpl extend
+          post: post
+        , self
 
-        save post.slug + ".md", md, "text/markdown"
-        .done()
-        save post.slug + ".html", html, "text/html"
-        .done()
-
-        # Update index.html
-        # assumes first post is index
-        if i is 0
-          save "index.html", html, "text/html"
-          .done()
+        console.log html
+        # save post.slug + ".html", html, "text/html"
+        # .done()
 
     loadManifest: (path) ->
       load(path)
@@ -152,4 +152,9 @@ module.exports = (I={}, self=Model(I)) ->
 
         posts.push data
 
-  self
+  self.files = Observable.concat self.posts, self.template, self.style
+
+  self.files.observe self.filetree().files
+  self.filetree().files self.files()
+
+  return self
