@@ -11,9 +11,41 @@ body
 
 #main
   padding-top: 21px
+  padding-left: 200px
   position: relative
 
 #actions
   position: absolute
   top: 0
   left: 0
+
+#filetree
+  position: absolute
+  top: 21px
+  left: 0
+  bottom: 0
+  margin: 0
+  padding: 1em 0 0 0
+  width: 200px
+  overflow-x: hidden
+  overflow-y: auto
+  z-index: 2
+
+  li
+    cursor: pointer
+    list-style-type: none
+    padding-left: 1em
+    position: relative
+    whitespace: nowrap
+
+    .delete
+      display: none
+      position: absolute
+      right: 0
+      top: 0
+
+    &:hover
+      background-color: lightyellow
+
+      .delete
+        display: inline-block

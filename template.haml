@@ -1,6 +1,9 @@
+- Filetree = require "./templates/filetree"
+
 #main
   #actions
     - @actions.forEach (action) ->
       %button(click=action.fn)= action.name.titleize()
+  = Filetree @filetree
   .wrap
     #ace
