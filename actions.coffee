@@ -1,28 +1,9 @@
-HeaderTemplate = require "./header_template"
-PostTemplate = require "./post_template"
 Uploader = require "s3-uploader"
 styl = require "styl"
 
 module.exports = ->
   policy = JSON.parse(localStorage.blogPolicy)
   uploader = Uploader(policy)
-  
-  load = (path) ->
-    deferred = Q.defer()
-
-    xhr = new XMLHttpRequest()
-    xhr.open('GET', "http://blog.whimsy.space/#{path}", true)
-
-    xhr.onload = (e) ->
-      if (200 <= this.status < 300) or this.status is 304
-        deferred.resolve this.responseText
-      else
-        deferred.reject e
-    xhr.onprogress = deferred.notify
-    xhr.onerror = deferred.reject
-    xhr.send()
-
-    deferred.promise
 
   actions =
     preview: ->
@@ -84,41 +65,6 @@ module.exports = ->
           key: path + ".md"
           blob: new Blob [text], type: "text/markdown; charset=UTF-8"
           cacheControl: 0
-
-    save_header: ->
-      path = "header"
-      text = editor.getValue()
-      html = markdown text
-
-      html = HeaderTemplate html, "no-bg header"
-
-      uploader.upload
-        key: path + ".html"
-        blob: new Blob [html], type: "text/html; charset=UTF-8"
-        cacheControl: 60
-
-      uploader.upload
-        key: path + ".md"
-        blob: new Blob [text], type: "text/markdown; charset=UTF-8"
-        cacheControl: 0
-
-    save_navigation: ->
-      # TODO: Autogenerate navigation
-      path = "navigation"
-      text = editor.getValue()
-      html = markdown text
-
-      html = HeaderTemplate html, "no-bg navigation"
-
-      uploader.upload
-        key: path + ".html"
-        blob: new Blob [html], type: "text/html; charset=UTF-8"
-        cacheControl: 60
-
-      uploader.upload
-        key: path + ".md"
-        blob: new Blob [text], type: "text/markdown; charset=UTF-8"
-        cacheControl: 0
 
     load_stylesheet: ->
       load("style.styl")
