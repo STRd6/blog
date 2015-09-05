@@ -14,7 +14,7 @@ window["STRd6/blog:master"]({
     },
     "main.coffee": {
       "path": "main.coffee",
-      "content": "require \"cornerstone\"\nglobal.markdown = marked\n\n# Store posts as JSON\n# Also store posts as html\n# Display Ace editor to edit markdown\n# Stylesheet\n# Header\n# Navigation\n# Manifest JSON\n# Filetree\n\nstyle = document.createElement \"style\"\nstyle.innerHTML = require \"./style\"\ndocument.head.appendChild style\ndocument.body.appendChild require(\"./template\")\n  actions: require(\"./actions\")()\n\nglobal.editor = ace.edit('ace')\n",
+      "content": "require \"cornerstone\"\nglobal.markdown = marked\n\n# Store posts as JSON\n# Also store posts as html\n# Display Ace editor to edit markdown\n# Stylesheet\n# Header\n# Navigation\n# Manifest JSON\n# Filetree\n\nFiletreePresenter = require \"./presenters/filetree\"\nFiletree = require \"./filetree\"\n\nfiletree = Filetree()\n\napplication = Model()\n\nstyle = document.createElement \"style\"\nstyle.innerHTML = require \"./style\"\ndocument.head.appendChild style\ndocument.body.appendChild require(\"./template\")\n  actions: require(\"./actions\")()\n  filetree: FiletreePresenter filetree, application\n\napplication.include require(\"./ace_shim\")\n",
       "mode": "100644"
     },
     "pixie.cson": {
@@ -29,12 +29,12 @@ window["STRd6/blog:master"]({
     },
     "template.haml": {
       "path": "template.haml",
-      "content": "#main\n  #actions\n    - @actions.forEach (action) ->\n      %button(click=action.fn)= action.name.titleize()\n  .wrap\n    #ace\n",
+      "content": "- Filetree = require \"./templates/filetree\"\n\n#main\n  #actions\n    - @actions.forEach (action) ->\n      %button(click=action.fn)= action.name.titleize()\n  = Filetree @filetree\n  .wrap\n    #ace\n",
       "mode": "100644"
     },
     "style.styl": {
       "path": "style.styl",
-      "content": "*\n  box-sizing: border-box\n\nhtml, body, #ace, #main, .wrap\n  height: 100%\n\nbody\n  font-family: \"HelveticaNeue-Light\", \"Helvetica Neue Light\", \"Helvetica Neue\", Helvetica, Arial, \"Lucida Grande\", sans-serif\n  font-weight: 300\n  margin: 0\n\n#main\n  padding-top: 21px\n  position: relative\n\n#actions\n  position: absolute\n  top: 0\n  left: 0\n",
+      "content": "*\n  box-sizing: border-box\n\nhtml, body, #ace, #main, .wrap\n  height: 100%\n\nbody\n  font-family: \"HelveticaNeue-Light\", \"Helvetica Neue Light\", \"Helvetica Neue\", Helvetica, Arial, \"Lucida Grande\", sans-serif\n  font-weight: 300\n  margin: 0\n\n#main\n  padding-top: 21px\n  padding-left: 200px\n  position: relative\n\n#actions\n  position: absolute\n  top: 0\n  left: 0\n\n#filetree\n  position: absolute\n  top: 21px\n  left: 0\n  bottom: 0\n  margin: 0\n  padding: 1em 0 0 0\n  width: 200px\n  overflow-x: hidden\n  overflow-y: auto\n  z-index: 2\n\n  li\n    cursor: pointer\n    list-style-type: none\n    padding-left: 1em\n    position: relative\n    whitespace: nowrap\n\n    .delete\n      display: none\n      position: absolute\n      right: 0\n      top: 0\n\n    &:hover\n      background-color: lightyellow\n\n      .delete\n        display: inline-block",
       "mode": "100644"
     },
     "actions.coffee": {
@@ -51,12 +51,32 @@ window["STRd6/blog:master"]({
       "path": "header_template.coffee",
       "content": "module.exports = (content, cssClass) ->\n  \"\"\"\n    <html>\n      <head>\n        <meta charset=\"utf-8\" />\n        <link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\">\n      </head>\n      <body class=\"#{cssClass}\">\n        #{content}\n      </body>\n    </html>\n  \"\"\"\n",
       "mode": "100644"
+    },
+    "filetree.coffee": {
+      "path": "filetree.coffee",
+      "content": "require \"cornerstone\"\n\nFile = (I={}, self=Model(I)) ->\n  defaults I,\n    content: \"\"\n\n  self.attrObservable \"content\", \"path\"\n\n  self\n\nmodule.exports = Filetree = (I={}, self=Model(I)) ->\n  defaults I,\n    files: [{\n      path: \"test.md\"\n      content: \"Radical\\n=======\\n\\nDuuuuuder\"\n    }, {\n      path: \"wat.js\"\n      content: \"alert('yolo')\"\n    }]\n\n  self.attrModels \"files\", File\n\n  self\n\nFiletree.File = File\n",
+      "mode": "100644"
+    },
+    "templates/filetree.haml": {
+      "path": "templates/filetree.haml",
+      "content": "%ul#filetree\n  - self = this\n  - files = @files\n  - files.forEach (file) ->\n    - select = (e) => self.select(file) if e.target.nodeName is 'LI'\n    %li(click=select)= file.path\n      - remove = -> files.remove(file) if confirm(\"Delete #{file.path()}?\")\n      .delete(click=remove) X\n",
+      "mode": "100644"
+    },
+    "presenters/filetree.coffee": {
+      "path": "presenters/filetree.coffee",
+      "content": "module.exports = (filetree, application) ->\n  extend {}, filetree,\n    select: (file) ->\n      unless session = file.session\n        file.session = application.initSession(file)\n\n      application.editor().getSession()?._signal(\"blur\")\n      application.editor().setSession(file.session)\n      file.session._signal?(\"focus\")\n",
+      "mode": "100644"
+    },
+    "ace_shim.coffee": {
+      "path": "ace_shim.coffee",
+      "content": "aceEditor = ace.edit \"ace\"\naceEditor.$blockScrolling = Infinity\naceEditor.setOptions\n  fontSize: \"16px\"\n\nmodule.exports = (I, self) ->\n  modeFor = (extension) ->\n    switch extension\n      when \"js\"\n        \"javascript\"\n      when \"md\"\n        \"markdown\"\n      when \"cson\"\n        \"coffee\"\n      when \"\"\n        \"text\"\n      else\n        extension\n  \n  extension = (path) ->\n    if match = path.match(/\\.([^\\.]*)$/, '')\n      match[1]\n    else\n      ''\n\n  self.extend\n    editor: ->\n      aceEditor\n  \n    initSession: (file) ->\n      session = ace.createEditSession(file.content())\n  \n      session.setMode(\"ace/mode/#{modeFor(extension(file.path()))}\")\n  \n      session.setUseSoftTabs true\n      session.setTabSize 2\n  \n      aceEditor.setOptions\n        highlightActiveLine: true\n        showPrintMargin: false\n  \n      # Filetree observable binding\n      updating = false\n      file.content.observe (newContent) ->\n        return if updating\n  \n        session.setValue newContent\n  \n      # Bind session and file content\n      session.on \"change\", ->\n        updating = true\n        file.content session.getValue()\n        updating = false\n  \n      return session\n",
+      "mode": "100644"
     }
   },
   "distribution": {
     "main": {
       "path": "main",
-      "content": "(function() {\n  var style;\n\n  require(\"cornerstone\");\n\n  global.markdown = marked;\n\n  style = document.createElement(\"style\");\n\n  style.innerHTML = require(\"./style\");\n\n  document.head.appendChild(style);\n\n  document.body.appendChild(require(\"./template\")({\n    actions: require(\"./actions\")()\n  }));\n\n  global.editor = ace.edit('ace');\n\n}).call(this);\n",
+      "content": "(function() {\n  var Filetree, FiletreePresenter, application, filetree, style;\n\n  require(\"cornerstone\");\n\n  global.markdown = marked;\n\n  FiletreePresenter = require(\"./presenters/filetree\");\n\n  Filetree = require(\"./filetree\");\n\n  filetree = Filetree();\n\n  application = Model();\n\n  style = document.createElement(\"style\");\n\n  style.innerHTML = require(\"./style\");\n\n  document.head.appendChild(style);\n\n  document.body.appendChild(require(\"./template\")({\n    actions: require(\"./actions\")(),\n    filetree: FiletreePresenter(filetree, application)\n  }));\n\n  application.include(require(\"./ace_shim\"));\n\n}).call(this);\n",
       "type": "blob"
     },
     "pixie": {
@@ -71,12 +91,12 @@ window["STRd6/blog:master"]({
     },
     "template": {
       "path": "template",
-      "content": "module.exports = function(data) {\n  \"use strict\";\n  return (function() {\n    var __root;\n    __root = require(\"/lib/hamlet-runtime\")(this);\n    __root.buffer(__root.element(\"div\", this, {\n      id: [\"main\"]\n    }, function(__root) {\n      __root.buffer(__root.element(\"div\", this, {\n        id: [\"actions\"]\n      }, function(__root) {\n        this.actions.forEach(function(action) {\n          return __root.buffer(__root.element(\"button\", this, {\n            \"click\": action.fn\n          }, function(__root) {\n            __root.buffer(action.name.titleize());\n          }));\n        });\n      }));\n      __root.buffer(__root.element(\"div\", this, {\n        \"class\": [\"wrap\"]\n      }, function(__root) {\n        __root.buffer(__root.element(\"div\", this, {\n          id: [\"ace\"]\n        }, function(__root) {}));\n      }));\n    }));\n    return __root.root;\n  }).call(data);\n};\n",
+      "content": "module.exports = function(data) {\n  \"use strict\";\n  return (function() {\n    var Filetree, __root;\n    __root = require(\"/lib/hamlet-runtime\")(this);\n    Filetree = require(\"./templates/filetree\");\n    __root.buffer(__root.element(\"div\", this, {\n      id: [\"main\"]\n    }, function(__root) {\n      __root.buffer(__root.element(\"div\", this, {\n        id: [\"actions\"]\n      }, function(__root) {\n        this.actions.forEach(function(action) {\n          return __root.buffer(__root.element(\"button\", this, {\n            \"click\": action.fn\n          }, function(__root) {\n            __root.buffer(action.name.titleize());\n          }));\n        });\n      }));\n      __root.buffer(Filetree(this.filetree));\n      __root.buffer(__root.element(\"div\", this, {\n        \"class\": [\"wrap\"]\n      }, function(__root) {\n        __root.buffer(__root.element(\"div\", this, {\n          id: [\"ace\"]\n        }, function(__root) {}));\n      }));\n    }));\n    return __root.root;\n  }).call(data);\n};\n",
       "type": "blob"
     },
     "style": {
       "path": "style",
-      "content": "module.exports = \"* {\\n  -ms-box-sizing: border-box;\\n  -moz-box-sizing: border-box;\\n  -webkit-box-sizing: border-box;\\n  box-sizing: border-box;\\n}\\n\\nhtml,\\nbody,\\n#ace,\\n#main,\\n.wrap {\\n  height: 100%;\\n}\\n\\nbody {\\n  font-family: \\\"HelveticaNeue-Light\\\", \\\"Helvetica Neue Light\\\", \\\"Helvetica Neue\\\", Helvetica, Arial, \\\"Lucida Grande\\\", sans-serif;\\n  font-weight: 300;\\n  margin: 0;\\n}\\n\\n#main {\\n  padding-top: 21px;\\n  position: relative;\\n}\\n\\n#actions {\\n  position: absolute;\\n  top: 0;\\n  left: 0;\\n}\";",
+      "content": "module.exports = \"* {\\n  -ms-box-sizing: border-box;\\n  -moz-box-sizing: border-box;\\n  -webkit-box-sizing: border-box;\\n  box-sizing: border-box;\\n}\\n\\nhtml,\\nbody,\\n#ace,\\n#main,\\n.wrap {\\n  height: 100%;\\n}\\n\\nbody {\\n  font-family: \\\"HelveticaNeue-Light\\\", \\\"Helvetica Neue Light\\\", \\\"Helvetica Neue\\\", Helvetica, Arial, \\\"Lucida Grande\\\", sans-serif;\\n  font-weight: 300;\\n  margin: 0;\\n}\\n\\n#main {\\n  padding-top: 21px;\\n  padding-left: 200px;\\n  position: relative;\\n}\\n\\n#actions {\\n  position: absolute;\\n  top: 0;\\n  left: 0;\\n}\\n\\n#filetree {\\n  position: absolute;\\n  top: 21px;\\n  left: 0;\\n  bottom: 0;\\n  margin: 0;\\n  padding: 1em 0 0 0;\\n  width: 200px;\\n  overflow-x: hidden;\\n  overflow-y: auto;\\n  z-index: 2;\\n}\\n\\n#filetree li .delete {\\n  display: none;\\n  position: absolute;\\n  right: 0;\\n  top: 0;\\n}\\n\\n#filetree li:hover .delete {\\n  display: inline-block;\\n}\\n\\n#filetree li:hover {\\n  background-color: lightyellow;\\n}\\n\\n#filetree li {\\n  cursor: pointer;\\n  list-style-type: none;\\n  padding-left: 1em;\\n  position: relative;\\n  whitespace: nowrap;\\n}\";",
       "type": "blob"
     },
     "actions": {
@@ -92,6 +112,26 @@ window["STRd6/blog:master"]({
     "header_template": {
       "path": "header_template",
       "content": "(function() {\n  module.exports = function(content, cssClass) {\n    return \"<html>\\n  <head>\\n    <meta charset=\\\"utf-8\\\" />\\n    <link rel=\\\"stylesheet\\\" type=\\\"text/css\\\" href=\\\"/style.css\\\">\\n  </head>\\n  <body class=\\\"\" + cssClass + \"\\\">\\n    \" + content + \"\\n  </body>\\n</html>\";\n  };\n\n}).call(this);\n",
+      "type": "blob"
+    },
+    "filetree": {
+      "path": "filetree",
+      "content": "(function() {\n  var File, Filetree;\n\n  require(\"cornerstone\");\n\n  File = function(I, self) {\n    if (I == null) {\n      I = {};\n    }\n    if (self == null) {\n      self = Model(I);\n    }\n    defaults(I, {\n      content: \"\"\n    });\n    self.attrObservable(\"content\", \"path\");\n    return self;\n  };\n\n  module.exports = Filetree = function(I, self) {\n    if (I == null) {\n      I = {};\n    }\n    if (self == null) {\n      self = Model(I);\n    }\n    defaults(I, {\n      files: [\n        {\n          path: \"test.md\",\n          content: \"Radical\\n=======\\n\\nDuuuuuder\"\n        }, {\n          path: \"wat.js\",\n          content: \"alert('yolo')\"\n        }\n      ]\n    });\n    self.attrModels(\"files\", File);\n    return self;\n  };\n\n  Filetree.File = File;\n\n}).call(this);\n",
+      "type": "blob"
+    },
+    "templates/filetree": {
+      "path": "templates/filetree",
+      "content": "module.exports = function(data) {\n  \"use strict\";\n  return (function() {\n    var __root;\n    __root = require(\"/lib/hamlet-runtime\")(this);\n    __root.buffer(__root.element(\"ul\", this, {\n      id: [\"filetree\"]\n    }, function(__root) {\n      var files, self;\n      self = this;\n      files = this.files;\n      files.forEach(function(file) {\n        var select;\n        select = (function(_this) {\n          return function(e) {\n            if (e.target.nodeName === 'LI') {\n              return self.select(file);\n            }\n          };\n        })(this);\n        return __root.buffer(__root.element(\"li\", this, {\n          \"click\": select\n        }, function(__root) {\n          var remove;\n          __root.buffer(file.path);\n          remove = function() {\n            if (confirm(\"Delete \" + (file.path()) + \"?\")) {\n              return files.remove(file);\n            }\n          };\n          __root.buffer(__root.element(\"div\", this, {\n            \"class\": [\"delete\"],\n            \"click\": remove\n          }, function(__root) {\n            __root.buffer(\"X\\n\");\n          }));\n        }));\n      });\n    }));\n    return __root.root;\n  }).call(data);\n};\n",
+      "type": "blob"
+    },
+    "presenters/filetree": {
+      "path": "presenters/filetree",
+      "content": "(function() {\n  module.exports = function(filetree, application) {\n    return extend({}, filetree, {\n      select: function(file) {\n        var session, _base, _ref;\n        if (!(session = file.session)) {\n          file.session = application.initSession(file);\n        }\n        if ((_ref = application.editor().getSession()) != null) {\n          _ref._signal(\"blur\");\n        }\n        application.editor().setSession(file.session);\n        return typeof (_base = file.session)._signal === \"function\" ? _base._signal(\"focus\") : void 0;\n      }\n    });\n  };\n\n}).call(this);\n",
+      "type": "blob"
+    },
+    "ace_shim": {
+      "path": "ace_shim",
+      "content": "(function() {\n  var aceEditor;\n\n  aceEditor = ace.edit(\"ace\");\n\n  aceEditor.$blockScrolling = Infinity;\n\n  aceEditor.setOptions({\n    fontSize: \"16px\"\n  });\n\n  module.exports = function(I, self) {\n    var extension, modeFor;\n    modeFor = function(extension) {\n      switch (extension) {\n        case \"js\":\n          return \"javascript\";\n        case \"md\":\n          return \"markdown\";\n        case \"cson\":\n          return \"coffee\";\n        case \"\":\n          return \"text\";\n        default:\n          return extension;\n      }\n    };\n    extension = function(path) {\n      var match;\n      if (match = path.match(/\\.([^\\.]*)$/, '')) {\n        return match[1];\n      } else {\n        return '';\n      }\n    };\n    return self.extend({\n      editor: function() {\n        return aceEditor;\n      },\n      initSession: function(file) {\n        var session, updating;\n        session = ace.createEditSession(file.content());\n        session.setMode(\"ace/mode/\" + (modeFor(extension(file.path()))));\n        session.setUseSoftTabs(true);\n        session.setTabSize(2);\n        aceEditor.setOptions({\n          highlightActiveLine: true,\n          showPrintMargin: false\n        });\n        updating = false;\n        file.content.observe(function(newContent) {\n          if (updating) {\n            return;\n          }\n          return session.setValue(newContent);\n        });\n        session.on(\"change\", function() {\n          updating = true;\n          file.content(session.getValue());\n          return updating = false;\n        });\n        return session;\n      }\n    });\n  };\n\n}).call(this);\n",
       "type": "blob"
     },
     "lib/hamlet-runtime": {
