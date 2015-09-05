@@ -4,52 +4,24 @@ HamletCompiler = require "./lib/hamlet-compiler"
 styl = require "styl"
 Uploader = require "s3-uploader"
 
-load = (path) ->
-  deferred = Q.defer()
+Post = (I={}, self=File(I)) ->
+  self.attrObservable "title", "slug"
 
-  xhr = new XMLHttpRequest()
-  xhr.open('GET', "http://blog.whimsy.space/#{path}", true)
+  self.extend
+    post: ->
+      true
 
-  xhr.onload = (e) ->
-    if (200 <= this.status < 300) or this.status is 304
-      deferred.resolve this.responseText
-    else
-      deferred.reject e
-  xhr.onprogress = deferred.notify
-  xhr.onerror = deferred.reject
-  xhr.send()
-
-  deferred.promise
-
-compileMarkdown = (source) ->
-  content = marked source
-
-  post = document.createElement("post")
-  post.innerHTML = content
-
-  post
-
-compileTmpl = (source) ->
-  fnTxt = HamletCompiler.compile source,
-    compiler: CoffeeScript
-    runtime: "require(\"/lib/hamlet-runtime\")"
-
-  m = {}
-  Function("module", "require", fnTxt)(m, require)
-  tmpl = m.exports
-
-  (data) ->
-    tmpl(data).outerHTML
+  self
 
 module.exports = (I={}, self=Model(I)) ->
   defaults I,
     posts: [{
-      path: "hello"
-      slug: "hello"
+      title: "Welcome"
+      path: "index"
       content: """
         Hello
         =====
-        
+
         World
       """
     }]
@@ -83,7 +55,7 @@ module.exports = (I={}, self=Model(I)) ->
       cacheControl: cacheControl
 
   self.attrModel "filetree", Filetree
-  self.attrModels "posts", File
+  self.attrModels "posts", Post
   self.attrModel "template", File
   self.attrModel "style", File
   self.attrObservable "title"
@@ -95,11 +67,47 @@ module.exports = (I={}, self=Model(I)) ->
         fn: ->
           self.newPost()
       }, {
+        name: "Preview"
+        fn: ->
+          self.preview()
+      }, {
+        name: "Load"
+        fn: ->
+          self.loadBlog()
+      }, {
         name: "Save"
         fn: ->
           self.publish()
       }]
+
     compileMarkdown: compileMarkdown
+
+    activePost: Observable()
+
+    preview: ->
+      previewWindow = window.open null, "preview", "width=800,height=600"
+
+      post = self.activePost()
+      tmpl = self.compileTemplate()
+      html = tmpl extend
+        post: post
+      , self
+
+      previewWindow.document.open()
+      previewWindow.document.write(html)
+      previewWindow.document.write """
+        <style>
+          #{self.compileStyle()}
+        </style>
+      """
+      previewWindow.document.close()
+
+    compileTemplate: ->
+      compileTmpl(self.template().content())
+
+    compileStyle: ->
+      compileStyle(self.style().content())
+
     publish: ->
       manifest =
         title: self.title()
@@ -110,8 +118,10 @@ module.exports = (I={}, self=Model(I)) ->
       save "blog.json", JSON.stringify(manifest), "application/json"
 
       # Compile template
-      templateContent = self.template().content()
-      tmpl = compileTmpl(templateContent)
+      tmpl = self.compileTemplate()
+
+      css = self.compileStyle()
+      save "style.css", css, "text/css"
 
       # Save posts
       #  - TODO: Only if post or template changed
@@ -124,17 +134,20 @@ module.exports = (I={}, self=Model(I)) ->
           post: post
         , self
 
-        console.log html
-        # save post.slug + ".html", html, "text/html"
-        # .done()
+        save post.path() + ".html", html, "text/html"
+        .done()
 
-    loadManifest: (path) ->
-      load(path)
-      .then ({posts, template, style}) ->
-        posts.map (post) ->
-          File post
-        .concat [File style]
-        .concat [File template]
+    loadBlog: ->
+      load("blog.json")
+      .then (data) ->
+        {posts, template, style} = JSON.parse data
+        
+        self.posts posts.map (post) ->
+          Post post
+
+        self.style File style
+        self.template File template
+      .done()
 
     newPost: ->
       title = prompt "Title"
@@ -142,15 +155,12 @@ module.exports = (I={}, self=Model(I)) ->
       if title
         slug = title.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-')
 
-        data = 
+        data =
           title: title
-          slug: slug
-          path: "posts/#{slug}.md"
+          path: slug
           content: ""
 
-        self.filetree().files.push File data
-
-        posts.push data
+        self.posts.push Post data
 
   self.files = Observable.concat self.posts, self.template, self.style
 
@@ -158,3 +168,45 @@ module.exports = (I={}, self=Model(I)) ->
   self.filetree().files self.files()
 
   return self
+
+## Helpers
+
+load = (path) ->
+  deferred = Q.defer()
+
+  xhr = new XMLHttpRequest()
+  xhr.open('GET', "http://blog.whimsy.space/#{path}", true)
+
+  xhr.onload = (e) ->
+    if (200 <= this.status < 300) or this.status is 304
+      deferred.resolve this.responseText
+    else
+      deferred.reject e
+  xhr.onprogress = deferred.notify
+  xhr.onerror = deferred.reject
+  xhr.send()
+
+  deferred.promise
+
+compileMarkdown = (source) ->
+  content = marked source
+
+  post = document.createElement("post")
+  post.innerHTML = content
+
+  post
+
+compileStyle = (source) ->
+  styl(source, whitespace: true).toString()
+
+compileTmpl = (source) ->
+  fnTxt = HamletCompiler.compile source,
+    compiler: CoffeeScript
+    runtime: "require(\"/lib/hamlet-runtime\")"
+
+  m = {}
+  Function("module", "require", fnTxt)(m, require)
+  tmpl = m.exports
+
+  (data) ->
+    tmpl(data).outerHTML
