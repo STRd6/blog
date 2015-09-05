@@ -85,7 +85,12 @@ module.exports = (I={}, self=Model(I)) ->
     activePost: Observable()
 
     preview: ->
-      previewWindow = window.open null, "preview", "width=800,height=600"
+      global.previewWindow = window.open null, "preview", "width=800,height=600"
+
+      self.hotReload()
+
+    hotReload: ->
+      return unless global.previewWindow
 
       post = self.activePost()
       tmpl = self.compileTemplate()
@@ -163,6 +168,15 @@ module.exports = (I={}, self=Model(I)) ->
         self.posts.push Post data
 
   self.files = Observable.concat self.posts, self.template, self.style
+
+  reloadPreview = ->
+    try
+      self.hotReload()
+    catch e
+      console.error e
+
+  self.style().content.observe reloadPreview
+  self.template().content.observe reloadPreview
 
   self.files.observe self.filetree().files
   self.filetree().files self.files()
