@@ -99,9 +99,8 @@ module.exports = (I={}, self=Model(I)) ->
 
       post = self.activePost()
       tmpl = self.compileTemplate()
-      html = tmpl extend
-        post: post
-      , self
+      object = self.renderObject(post)
+      html = tmpl object
 
       self.compileStyle().then (css) ->
         previewWindow.document.open()
@@ -139,6 +138,15 @@ module.exports = (I={}, self=Model(I)) ->
         </html>
       """, "text/html"
 
+    helperMethods: ->
+      compileMarkdown: compileMarkdown
+
+    renderObject: (post) ->
+      extend
+        post: post.I
+        posts: I.posts
+      , self.helperMethods()
+
     publish: ->
       manifest =
         title: self.title()
@@ -163,11 +171,9 @@ module.exports = (I={}, self=Model(I)) ->
         path = post.I.slug
         md = post.content()
 
-        html = tmpl extend
-          post: post
-        , self
+        html = tmpl self.renderObject(post)
 
-        save post.path() + ".html", html, "text/html"
+        save post.path(), html, "text/html"
         .done()
 
     loadBlog: ->
