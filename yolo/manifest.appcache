@@ -1,5 +1,5 @@
 CACHE MANIFEST
-# 1441496886782
+# 1441594095600
 
 CACHE:
 index.html
@@ -7,6 +7,7 @@ index.html
 https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.js
 https://cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js
 https://cdnjs.cloudflare.com/ajax/libs/coffee-script/1.7.1/coffee-script.min.js
+http://blog.whimsy.space/assets/stylus.min.js
 
 NETWORK:
 https://*
