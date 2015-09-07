@@ -1,0 +1,30 @@
+%html
+  %head
+    %meta(charset="UTF-8")
+    %link(rel="stylesheet" type="text/css" href="style.css")
+    %title
+      = @post.title
+      = " | whimsy.space"
+
+  %body
+    .wrap
+      .bg
+    #content
+      %header
+        %h1 
+          Whimsy Space
+          %img(src="https://secure.gravatar.com/avatar/33117162fff8a9cf50544a604f60c045.png?s=74")
+        %p A magical land of endless possibilities
+  
+      #main
+  
+        = @compileMarkdown @post.content
+        
+        %navigation
+          %h2 Posts
+          %ul
+            - @posts.each (post) ->
+              %li
+                %a(href="/#{post.path}.html")= post.title
+  
+      %footer

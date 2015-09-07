@@ -10,20 +10,7 @@ File = (I={}, self=Model(I)) ->
 
 module.exports = Filetree = (I={}, self=Model(I)) ->
   defaults I,
-    files: [{
-      path: "test.md"
-      content: "Radical\n=======\n\nDuuuuuder"
-    }, {
-      path: "wat.js"
-      content: "alert('yolo')"
-    }, {
-      path: "test.css"
-      content: """
-        body {
-          border: 8px solid green;
-        }
-      """
-    }]
+    files: []
 
   self.attrModels "files", File
 
