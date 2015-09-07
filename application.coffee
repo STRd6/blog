@@ -1,7 +1,6 @@
 Filetree = require "./filetree"
 File = Filetree.File
 HamletCompiler = require "./lib/hamlet-compiler"
-styl = require "styl"
 Uploader = require "s3-uploader"
 
 Post = (I={}, self=File(I)) ->
@@ -84,6 +83,12 @@ module.exports = (I={}, self=Model(I)) ->
 
     activePost: Observable()
 
+    uploadAsset: (file) ->
+      uploader.upload
+        key: "assets/#{file.name}"
+        blob: file
+        cacheControl: 0
+
     preview: ->
       global.previewWindow = window.open null, "preview", "width=800,height=600"
 
@@ -98,14 +103,15 @@ module.exports = (I={}, self=Model(I)) ->
         post: post
       , self
 
-      previewWindow.document.open()
-      previewWindow.document.write(html)
-      previewWindow.document.write """
-        <style>
-          #{self.compileStyle()}
-        </style>
-      """
-      previewWindow.document.close()
+      self.compileStyle().then (css) ->
+        previewWindow.document.open()
+        previewWindow.document.write(html)
+        previewWindow.document.write """
+          <style>
+            #{css}
+          </style>
+        """
+        previewWindow.document.close()
 
     compileTemplate: ->
       compileTmpl(self.template().content())
@@ -145,8 +151,10 @@ module.exports = (I={}, self=Model(I)) ->
       # Compile template
       tmpl = self.compileTemplate()
 
-      css = self.compileStyle()
-      save "style.css", css, "text/css"
+      self.compileStyle()
+      .then (css) ->
+        save "style.css", css, "text/css"
+      .done()
 
       # Save posts
       #  - TODO: Only if post or template changed
@@ -172,34 +180,34 @@ module.exports = (I={}, self=Model(I)) ->
 
         self.style File style
         self.template File template
+        
+        self.filetree().files [
+          self.template(),
+          self.style()
+          self.posts()...
+        ]
       .done()
 
     newPost: ->
       title = prompt "Title"
 
       if title
-        slug = title.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-')
+        slug = title.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').toLowerCase()
 
         data =
           title: title
           path: slug
           content: ""
 
-        self.posts.push Post data
-
-  self.files = Observable.concat self.posts, self.template, self.style
+        post = Post data
+        self.posts.push post
+        self.filetree().files.push post
 
   reloadPreview = ->
     try
       self.hotReload()
     catch e
       console.error e
-
-  self.style().content.observe reloadPreview
-  self.template().content.observe reloadPreview
-
-  self.files.observe self.filetree().files
-  self.filetree().files self.files()
 
   return self
 
@@ -231,7 +239,8 @@ compileMarkdown = (source) ->
   post
 
 compileStyle = (source) ->
-  styl(source, whitespace: true).toString()
+  renderer = stylus(source)
+  Q.npost(renderer, "render")
 
 compileTmpl = (source) ->
   fnTxt = HamletCompiler.compile source,
