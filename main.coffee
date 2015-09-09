@@ -20,3 +20,13 @@ document.head.appendChild style
 document.body.appendChild require("./template")(application)
 
 application.include require("./ace_shim")
+
+global.application = application
+
+application.loadBlog()
+
+dropReader = require "./drop"
+
+dropReader document.documentElement, (files) ->
+  Array::map.call files, (file) ->
+    application.uploadAsset file
