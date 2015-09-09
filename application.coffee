@@ -121,7 +121,7 @@ module.exports = (I={}, self=Model(I)) ->
     uploadEditor: ->
       Require = require "require"
       editorJS = Require.executePackageWrapper(PACKAGE)
-      
+
       remoteDepScripts = PACKAGE.remoteDependencies.map (url) ->
         "<script src=\"#{url}\"><\/script>"
       .join("\n")
@@ -180,13 +180,13 @@ module.exports = (I={}, self=Model(I)) ->
       load("blog.json")
       .then (data) ->
         {posts, template, style} = JSON.parse data
-        
+
         self.posts posts.map (post) ->
           Post post
 
         self.style File style
         self.template File template
-        
+
         self.filetree().files [
           self.template(),
           self.style()
